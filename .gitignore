@@ -12,3 +12,4 @@ archive/
 
 # Saved custom providers (PERSIST_PROVIDERS=true) hold API keys in plain text - NEVER COMMIT
 data/
+seeder/seed.log

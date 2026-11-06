@@ -273,6 +273,45 @@ spooky-ai/
     └── config.toml        # UI theme + toolbar settings (hides the Deploy button)
 ```
 
+## Demo data seeder 🌱
+
+`seeder/` is a standalone script that sends a fixed set of demo prompts straight to the Prompt Security `/api/protect` endpoint, so your console always has fresh, consistent data for demos. It does not use the Streamlit UI or any LLM, and needs only Python 3 (standard library) plus the `PS_APP_ID` / `PS_GATEWAY_URL` (and optional `PS_POLICY_NAME`) already in your `.env`.
+
+| File | Purpose |
+| :--- | :--- |
+| `seeder/prompts.json` | The 50 prompts. Each has a category (`cat`) and optional `kind: "response"` (checks model output instead of a prompt), `gen: "long"` (generates a very long input) or `gen: "tags"` (hides text in invisible Unicode Tag characters) |
+| `seeder/seed.py` | Sends every prompt once, attributed to one of 6 demo users (chosen deterministically from the date). Prints the action (`block` / `modify` / `log` / `error`) for each |
+| `seeder/install_schedule.sh` | macOS only: installs a launchd job that runs the seeder Mon-Fri at 08:00, 12:00 and 16:00 local time (150 calls/day). `--uninstall` removes it |
+
+```bash
+python3 -I seeder/seed.py --dry-run   # preview, sends nothing
+python3 -I seeder/seed.py             # one real run (50 calls, ~1 minute)
+./seeder/install_schedule.sh          # schedule it
+```
+
+The Mac must be awake at the scheduled times (a missed run happens at next wake). Output is written to `seeder/seed.log`.
+
+**Prompt categories and the policy settings they exercise** (prompts only trigger if the matching detector is enabled in your policy):
+
+| Category | What it tests | Policy setup |
+| :--- | :--- | :--- |
+| Prompt Injection, Jailbreak, Prompt Leak | Injection / jailbreak / system-prompt-leak detectors | Defaults; for response-side leak checks, register your system prompt |
+| PII, Secrets | Sensitive data and secrets detectors | Enable the relevant entity types |
+| Harmful Content, Banned Topics, Malware | Toxicity, banned-topic and code detectors | Set to block |
+| Unicode | Invisible characters and emojis (prompt and response) | Unicode Detector with *Invisible Characters* and *Emojis* checked |
+| Token Limit | Prompts over the token limit | Set the prompt limit (the demo prompts assume 496) |
+| URL | Blocked domains | Add `evilcorp.com` and `salaries.hr.acme.com` as blocked domains |
+| NL Guardrail | Natural-language guardrail | Add the guardrail text below |
+| Clean | Control prompts that should pass | None |
+
+Natural-language guardrail text used with the demo prompts:
+
+> Block any prompt that asks for, discusses, or tries to infer confidential internal company information, specifically: (1) individual or group employee compensation, salary bands, raises, or bonuses; (2) layoffs, terminations, reorganizations, or performance improvement plans naming or ranking employees; (3) unannounced mergers, acquisitions, or non-public financial results and share prices. General, publicly available explanations of these topics (e.g. "how do salary bands work in general?") are allowed.
+
+All secrets, card numbers and personal data in `prompts.json` are fictional examples.
+
+---
+
 ---
 
 ## Contributors
